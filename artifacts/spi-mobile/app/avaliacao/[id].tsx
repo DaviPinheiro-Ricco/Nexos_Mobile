@@ -3,6 +3,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDb } from "@/context/DbContext";
+import { useAuth } from "@/context/AuthContext";
 import { FORMS } from "@/constants/forms";
 import { exportEvaluationPdf } from "@/utils/generatePdf";
 import { useColors } from "@/hooks/useColors";
@@ -22,8 +26,10 @@ export default function AvaliacaoDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { evaluations } = useDb();
+  const { evaluations, specialists, updateEvaluationReferral } = useDb();
+  const { isAdmin } = useAuth();
   const [sharing, setSharing] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
 
   const evalData = evaluations.find((e) => e.id === id);
 
@@ -386,6 +392,98 @@ export default function AvaliacaoDetailScreen() {
           </View>
         </View>
 
+        {/* ── Referral section (admin only) ── */}
+        {isAdmin() && (
+          <View
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: colors.border,
+              marginBottom: 16,
+              overflow: "hidden",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingHorizontal: 16,
+                paddingTop: 14,
+                paddingBottom: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontFamily: "Inter_700Bold", color: colors.foreground }}>
+                Encaminhamento ao Especialista
+              </Text>
+              <Pressable
+                onPress={() => setShowReferral(true)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  backgroundColor: colors.primary + "15",
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                }}
+              >
+                <Feather name="edit-2" size={12} color={colors.primary} />
+                <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: colors.primary }}>
+                  {evalData.encaminhado != null ? "Alterar" : "Definir"}
+                </Text>
+              </Pressable>
+            </View>
+
+            {evalData.encaminhado === null ? (
+              <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
+                <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>
+                  Nenhuma decisão de encaminhamento registrada.
+                </Text>
+              </View>
+            ) : evalData.encaminhado === false ? (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 14,
+                }}
+              >
+                <Feather name="x-circle" size={16} color="#64748b" />
+                <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#64748b" }}>
+                  Sem encaminhamento
+                </Text>
+              </View>
+            ) : (
+              <View style={{ paddingHorizontal: 16, paddingVertical: 14, gap: 6 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Feather name="check-circle" size={16} color="#16a34a" />
+                  <Text style={{ fontSize: 13, fontFamily: "Inter_700Bold", color: "#16a34a" }}>Encaminhado</Text>
+                </View>
+                <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.foreground }}>
+                  {evalData.specialistNome ?? "—"}
+                </Text>
+                {evalData.especialidade && (
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.mutedForeground }}>
+                    {evalData.especialidade}
+                  </Text>
+                )}
+                {evalData.custoEstimado != null && (
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: colors.primary }}>
+                    Custo estimado:{" "}
+                    {evalData.custoEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Share CTA */}
         <Pressable
           style={[{
@@ -413,6 +511,222 @@ export default function AvaliacaoDetailScreen() {
           )}
         </Pressable>
       </ScrollView>
+
+      {/* Referral Modal */}
+      {isAdmin() && (
+        <Modal
+          visible={showReferral}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowReferral(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }}>
+            <ReferralSheet
+              evalId={evalData.id}
+              current={{
+                encaminhado: evalData.encaminhado,
+                specialistId: evalData.specialistId,
+              }}
+              specialists={specialists.filter((s) => s.ativo)}
+              onSave={async (data) => {
+                await updateEvaluationReferral(evalData.id, data);
+                setShowReferral(false);
+              }}
+              onCancel={() => setShowReferral(false)}
+            />
+          </View>
+        </Modal>
+      )}
     </View>
+  );
+}
+
+// ─── Referral Sheet ──────────────────────────────────────────────────────────
+
+import { LocalSpecialist } from "@/context/DbContext";
+import { FlatList } from "react-native";
+
+function ReferralSheet({
+  current,
+  specialists,
+  onSave,
+  onCancel,
+}: {
+  evalId: string;
+  current: { encaminhado: boolean | null; specialistId: string | null };
+  specialists: LocalSpecialist[];
+  onSave: (data: { encaminhado: boolean; specialistId: string | null }) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const [encaminhado, setEncaminhado] = useState<boolean | null>(current.encaminhado);
+  const [selectedId, setSelectedId] = useState<string | null>(current.specialistId);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    if (encaminhado === null) { setError("Selecione uma opção de encaminhamento."); return; }
+    if (encaminhado && !selectedId) { setError("Selecione um especialista."); return; }
+    setError("");
+    setSaving(true);
+    try {
+      await onSave({ encaminhado, specialistId: encaminhado ? selectedId : null });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const r = StyleSheet.create({
+    sheet: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 20,
+      paddingBottom: Platform.OS === "web" ? 32 : insets.bottom + 16,
+      maxHeight: "85%",
+    },
+    title: { fontSize: 17, fontFamily: "Inter_700Bold", color: colors.foreground, marginBottom: 16 },
+    optRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 16,
+    },
+    optBtn: {
+      flex: 1,
+      borderRadius: 10,
+      paddingVertical: 11,
+      alignItems: "center",
+      borderWidth: 1.5,
+    },
+    optText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+    sectionLabel: { fontSize: 12, fontFamily: "Inter_700Bold", color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 },
+    specItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      padding: 12,
+      marginBottom: 8,
+    },
+    specAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    specName: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.foreground },
+    specSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: colors.mutedForeground },
+    error: { backgroundColor: "#fee2e2", borderRadius: 10, padding: 10, marginBottom: 10 },
+    btnRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+    cancelBtn: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: "center", backgroundColor: colors.muted },
+    saveBtn: { flex: 2, borderRadius: 12, paddingVertical: 13, alignItems: "center", backgroundColor: colors.primary },
+  });
+
+  return (
+    <ScrollView style={r.sheet} keyboardShouldPersistTaps="handled">
+      <Text style={r.title}>Encaminhamento ao Especialista</Text>
+
+      {/* Yes / No buttons */}
+      <View style={r.optRow}>
+        {([false, true] as const).map((opt) => (
+          <Pressable
+            key={String(opt)}
+            style={[
+              r.optBtn,
+              {
+                backgroundColor:
+                  encaminhado === opt
+                    ? opt
+                      ? "#dcfce7"
+                      : "#f1f5f9"
+                    : colors.muted,
+                borderColor:
+                  encaminhado === opt
+                    ? opt
+                      ? "#16a34a"
+                      : "#94a3b8"
+                    : colors.border,
+              },
+            ]}
+            onPress={() => { setEncaminhado(opt); if (!opt) setSelectedId(null); }}
+          >
+            <Feather
+              name={opt ? "check-circle" : "x-circle"}
+              size={16}
+              color={encaminhado === opt ? (opt ? "#16a34a" : "#64748b") : colors.mutedForeground}
+            />
+            <Text
+              style={[
+                r.optText,
+                { color: encaminhado === opt ? (opt ? "#16a34a" : "#64748b") : colors.mutedForeground, marginTop: 3 },
+              ]}
+            >
+              {opt ? "Encaminhar" : "Sem encaminhamento"}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Specialist list */}
+      {encaminhado === true && (
+        <>
+          <Text style={r.sectionLabel}>Selecione o especialista</Text>
+          {specialists.length === 0 ? (
+            <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.mutedForeground, marginBottom: 12 }}>
+              Nenhum especialista ativo cadastrado. Acesse a aba Especialistas para adicionar.
+            </Text>
+          ) : (
+            specialists.map((s) => {
+              const selected = selectedId === s.id;
+              return (
+                <Pressable
+                  key={s.id}
+                  style={[
+                    r.specItem,
+                    {
+                      backgroundColor: selected ? colors.primary + "10" : colors.muted,
+                      borderColor: selected ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => setSelectedId(s.id)}
+                >
+                  <View style={[r.specAvatar, { backgroundColor: selected ? colors.primary + "20" : colors.border + "40" }]}>
+                    <Text style={{ fontSize: 15, fontFamily: "Inter_700Bold", color: selected ? colors.primary : colors.mutedForeground }}>
+                      {s.nome.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={r.specName}>{s.nome}</Text>
+                    <Text style={r.specSub}>
+                      {s.especialidade} ·{" "}
+                      {s.custoConsulta.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </Text>
+                  </View>
+                  {selected && <Feather name="check-circle" size={18} color={colors.primary} />}
+                </Pressable>
+              );
+            })
+          )}
+        </>
+      )}
+
+      {error ? (
+        <View style={r.error}>
+          <Text style={{ color: "#dc2626", fontSize: 13, fontFamily: "Inter_500Medium" }}>{error}</Text>
+        </View>
+      ) : null}
+
+      <View style={r.btnRow}>
+        <Pressable style={r.cancelBtn} onPress={onCancel}>
+          <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold" }}>Cancelar</Text>
+        </Pressable>
+        <Pressable style={[r.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+          <Text style={{ color: "#fff", fontFamily: "Inter_700Bold" }}>{saving ? "Salvando..." : "Confirmar"}</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
   );
 }

@@ -111,7 +111,7 @@ artifacts/spi-mobile/
 │   ├── DbContext.tsx       ← Banco de dados local + seed de dados
 │   └── SyncContext.tsx     ← Sincronização com servidor .NET
 ├── constants/
-│   ├── forms.ts            ← Formulários SPI, CARS, M-CHAT-R
+│   ├── forms.ts            ← Formulários SPI, escala adaptada, M-CHAT-R
 │   ├── questions.ts        ← Re-exporta forms.ts (compatibilidade)
 │   └── colors.ts           ← Tema de cores do app
 ├── hooks/
@@ -267,7 +267,7 @@ interface Patient {
 interface Evaluation {
   id: string;
   patientId: string;
-  formType: "SPI" | "CARS" | "M-CHAT-R";
+  formType: "SPI" | "escala adaptada" | "M-CHAT-R";
   answers: Record<string, number>;
   scoreTotal: number;
   // ...
@@ -276,7 +276,7 @@ interface Evaluation {
 
 ---
 
-### 5.7 Formulários de avaliação (SPI, CARS, M-CHAT-R)
+### 5.7 Formulários de avaliação (SPI, escala adaptada, M-CHAT-R)
 Definidos em `constants/forms.ts`. Cada formulário é um objeto com:
 ```typescript
 {
@@ -348,7 +348,7 @@ Tela inicial (tabs):
     ↓
 Nova Avaliação:
   1. Seleciona paciente
-  2. Seleciona formulário (SPI/CARS/M-CHAT-R)
+  2. Seleciona formulário (SPI/escala adaptada/M-CHAT-R)
   3. Responde questões (barra de progresso)
   4. Score calculado automaticamente
   5. Salvo no AsyncStorage

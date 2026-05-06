@@ -195,7 +195,7 @@ artifacts/spi-mobile/
 │   └── SyncContext.tsx           # Sincronização background com o servidor .NET
 │
 ├── constants/
-│   ├── forms.ts                  # Definição dos 3 formulários (SPI, CARS, M-CHAT-R)
+│   ├── forms.ts                  # Definição dos 3 formulários (SPI, escala adaptada, M-CHAT-R)
 │   ├── questions.ts              # Re-export de compatibilidade para SPI_QUESTIONS
 │   └── colors.ts                 # Design tokens de cores (light mode)
 │
@@ -429,7 +429,7 @@ interface LocalEvaluation {
   scoreTotal: number;                  // soma de respostas
   classificacao: string;               // label textual ("Sem indicativo de TEA", etc.)
   dataAvaliacao: string;               // ISO 8601
-  formId: number | null;               // 1=SPI, 2=CARS, 3=M-CHAT-R
+  formId: number | null;               // 1=SPI, 2=escala adaptada, 3=M-CHAT-R
   syncStatus: "synced" | "pending" | "error";
 }
 ```
@@ -459,7 +459,7 @@ interface FormDefinition {
   id: number;            // 1 | 2 | 3
   slug: string;          // "spi" | "cars" | "mchat"
   name: string;          // nome completo
-  shortName: string;     // badge curto: "SPI", "CARS", "M-CHAT-R"
+  shortName: string;     // badge curto: "SPI", "escala adaptada", "M-CHAT-R"
   description: string;
   targetAge: string;     // faixa etária recomendada
   questionCount: number;
@@ -487,7 +487,7 @@ score < 37    → "TEA Leve a Moderado"      (amarelo)
 score ≥ 37    → "TEA Grave"               (vermelho)
 ```
 
-**CARS — Limiares:**
+**Escala adaptada — Limiares:**
 ```
 score < 30  → "Sem indicativo de TEA"
 score < 37  → "TEA Leve a Moderado"
@@ -501,7 +501,7 @@ score ≤ 7  → "Risco Médio — Acompanhar"
 score > 7  → "Alto Risco — Encaminhar"
 ```
 
-**Por que CARS e M-CHAT-R são `isDemo: true`?**
+**Por que escala adaptada e M-CHAT-R são `isDemo: true`?**
 
 Esses instrumentos são padronizados e reconhecidos internacionalmente. A decisão de habilitar em produção pertence ao gestor de saúde/coordenador do sistema — o app expõe a estrutura e permite visualizar, mas não persiste dados para evitar que avaliações com formulários não validados pelo protocolo do município sejam enviadas ao servidor.
 

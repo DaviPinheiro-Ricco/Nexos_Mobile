@@ -176,8 +176,8 @@ const SPI_QUESTIONS: FormQuestion[] = [
   },
 ];
 
-// ─── CARS ────────────────────────────────────────────────────────────────────
-const CARS_QUESTIONS: FormQuestion[] = [
+// ─── Escala adaptada (CARS) ───────────────────────────────────────────────────
+const ESCALA_ADAPTADA_QUESTIONS: FormQuestion[] = [
   {
     id: 1,
     name: "Relacionamento com pessoas",
@@ -518,8 +518,8 @@ export const FORMS: FormDefinition[] = [
   {
     id: 2,
     slug: "cars",
-    name: "Childhood Autism Rating Scale",
-    shortName: "CARS",
+    name: "Escala adaptada",
+    shortName: "Escala adaptada",
     description: "Escala de avaliação para autismo infantil. 15 áreas de desenvolvimento observadas pelo profissional de saúde.",
     targetAge: "2 anos ou mais",
     questionCount: 15,
@@ -527,7 +527,7 @@ export const FORMS: FormDefinition[] = [
     maxScore: 60,
     isDemo: true,
     accentColor: "#7c3aed",
-    questions: CARS_QUESTIONS,
+    questions: ESCALA_ADAPTADA_QUESTIONS,
     classify: (score) => {
       if (score < 30) return { label: "Sem indicativo de TEA", color: "#16a34a", bgColor: "#dcfce7", level: "low" };
       if (score < 37) return { label: "TEA Leve a Moderado",   color: "#ca8a04", bgColor: "#fef9c3", level: "medium" };
