@@ -222,6 +222,40 @@ export default function PacienteDetailScreen() {
           </View>
         </View>
 
+        {/* Encaminhamento ao especialista (last evaluation that has a referral) */}
+        {(() => {
+          const lastReferral = [...patientEvals]
+            .sort((a, b) => new Date(b.dataAvaliacao).getTime() - new Date(a.dataAvaliacao).getTime())
+            .find((e) => e.encaminhado !== null);
+          if (!lastReferral) return null;
+          if (lastReferral.encaminhado === false) return (
+            <View style={{ backgroundColor: "#f1f5f9", borderRadius: 14, padding: 14, marginBottom: 14, flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Feather name="x-circle" size={18} color="#64748b" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.6 }}>Encaminhamento</Text>
+                <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: "#64748b", marginTop: 2 }}>Sem encaminhamento definido</Text>
+              </View>
+            </View>
+          );
+          return (
+            <View style={{ backgroundColor: "#dcfce7", borderRadius: 14, padding: 14, marginBottom: 14 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Feather name="check-circle" size={16} color="#16a34a" />
+                <Text style={{ fontSize: 12, fontFamily: "Inter_700Bold", color: "#16a34a", textTransform: "uppercase", letterSpacing: 0.6 }}>Encaminhado ao especialista</Text>
+              </View>
+              <Text style={{ fontSize: 15, fontFamily: "Inter_700Bold", color: "#064e3b" }}>{lastReferral.specialistNome ?? "—"}</Text>
+              {lastReferral.especialidade && (
+                <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: "#065f46", marginTop: 2 }}>{lastReferral.especialidade}</Text>
+              )}
+              {lastReferral.custoEstimado != null && (
+                <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: "#047857", marginTop: 4 }}>
+                  Custo estimado: {lastReferral.custoEstimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </Text>
+              )}
+            </View>
+          );
+        })()}
+
         {/* Dados pessoais */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>Dados pessoais</Text>

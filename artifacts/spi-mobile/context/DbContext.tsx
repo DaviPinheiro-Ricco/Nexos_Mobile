@@ -26,6 +26,15 @@ export interface LocalPatient {
   syncStatus: "synced" | "pending" | "error";
 }
 
+export interface LocalSpecialist {
+  id: string;
+  nome: string;
+  especialidade: string;
+  custoConsulta: number;
+  ativo: boolean;
+  criadoEm: string;
+}
+
 export interface LocalEvaluation {
   id: string;
   serverId: number | null;
@@ -39,16 +48,27 @@ export interface LocalEvaluation {
   dataAvaliacao: string;
   formId: number | null;
   syncStatus: "synced" | "pending" | "error";
+  // Referral fields (set by admin after evaluation)
+  encaminhado: boolean | null;
+  specialistId: string | null;
+  specialistNome: string | null;
+  especialidade: string | null;
+  custoEstimado: number | null;
 }
 
 interface DbState {
   patients: LocalPatient[];
   evaluations: LocalEvaluation[];
+  specialists: LocalSpecialist[];
   isLoaded: boolean;
   addPatient: (p: Omit<LocalPatient, "id" | "serverId" | "criadoEm" | "syncStatus">) => Promise<LocalPatient>;
   updatePatient: (id: string, p: Partial<LocalPatient>) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
   addEvaluation: (e: Omit<LocalEvaluation, "id" | "serverId" | "syncStatus">) => Promise<LocalEvaluation>;
+  updateEvaluationReferral: (
+    evalId: string,
+    data: { encaminhado: boolean; specialistId: string | null }
+  ) => Promise<void>;
   getPendingPatients: () => LocalPatient[];
   getPendingEvaluations: () => LocalEvaluation[];
   markPatientSynced: (localId: string, serverId: number) => Promise<void>;
@@ -58,6 +78,10 @@ interface DbState {
   refreshFromServer: (serverPatients: ServerPatient[], serverEvals: ServerEvaluation[]) => Promise<void>;
   seedDemoPatients: () => Promise<void>;
   clearAllData: () => Promise<void>;
+  // Specialists
+  addSpecialist: (s: Omit<LocalSpecialist, "id" | "criadoEm">) => Promise<LocalSpecialist>;
+  updateSpecialist: (id: string, s: Partial<LocalSpecialist>) => Promise<void>;
+  deactivateSpecialist: (id: string) => Promise<void>;
 }
 
 export interface ServerPatient {
@@ -99,6 +123,7 @@ const DbContext = createContext<DbState | null>(null);
 
 const PATIENTS_KEY = "spi_db_patients";
 const EVALS_KEY = "spi_db_evaluations";
+const SPECIALISTS_KEY = "spi_db_specialists";
 
 function genId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -137,9 +162,11 @@ export const DEMO_AGENTS: { id: number; nome: string; role: string }[] = [
 export function DbProvider({ children }: { children: React.ReactNode }) {
   const [patients, setPatients] = useState<LocalPatient[]>([]);
   const [evaluations, setEvaluations] = useState<LocalEvaluation[]>([]);
+  const [specialists, setSpecialists] = useState<LocalSpecialist[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const patientsRef = useRef<LocalPatient[]>([]);
   const evalsRef = useRef<LocalEvaluation[]>([]);
+  const specialistsRef = useRef<LocalSpecialist[]>([]);
 
   useEffect(() => {
     patientsRef.current = patients;
@@ -147,18 +174,24 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     evalsRef.current = evaluations;
   }, [evaluations]);
+  useEffect(() => {
+    specialistsRef.current = specialists;
+  }, [specialists]);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [pStr, eStr] = await Promise.all([
+        const [pStr, eStr, sStr] = await Promise.all([
           AsyncStorage.getItem(PATIENTS_KEY),
           AsyncStorage.getItem(EVALS_KEY),
+          AsyncStorage.getItem(SPECIALISTS_KEY),
         ]);
         const p: LocalPatient[] = pStr ? JSON.parse(pStr) : [];
         const e: LocalEvaluation[] = eStr ? JSON.parse(eStr) : [];
+        const s: LocalSpecialist[] = sStr ? JSON.parse(sStr) : [];
         setPatients(p);
         setEvaluations(e);
+        setSpecialists(s);
       } catch {
         // ignore
       } finally {
@@ -176,6 +209,11 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
   const saveEvals = useCallback(async (list: LocalEvaluation[]) => {
     await AsyncStorage.setItem(EVALS_KEY, JSON.stringify(list));
     setEvaluations(list);
+  }, []);
+
+  const saveSpecialists = useCallback(async (list: LocalSpecialist[]) => {
+    await AsyncStorage.setItem(SPECIALISTS_KEY, JSON.stringify(list));
+    setSpecialists(list);
   }, []);
 
   const addPatient = useCallback(async (
@@ -213,11 +251,66 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
       id: genId(),
       serverId: null,
       syncStatus: "pending",
+      encaminhado: e.encaminhado ?? null,
+      specialistId: e.specialistId ?? null,
+      specialistNome: e.specialistNome ?? null,
+      especialidade: e.especialidade ?? null,
+      custoEstimado: e.custoEstimado ?? null,
     };
     const updated = [...evalsRef.current, newE];
     await saveEvals(updated);
     return newE;
   }, [saveEvals]);
+
+  const updateEvaluationReferral = useCallback(async (
+    evalId: string,
+    data: { encaminhado: boolean; specialistId: string | null }
+  ) => {
+    const specialist = data.encaminhado && data.specialistId
+      ? specialistsRef.current.find((s) => s.id === data.specialistId) ?? null
+      : null;
+    const updated = evalsRef.current.map((e) =>
+      e.id === evalId
+        ? {
+            ...e,
+            encaminhado: data.encaminhado,
+            specialistId: data.encaminhado ? (specialist?.id ?? data.specialistId) : null,
+            specialistNome: data.encaminhado ? (specialist?.nome ?? null) : null,
+            especialidade: data.encaminhado ? (specialist?.especialidade ?? null) : null,
+            custoEstimado: data.encaminhado ? (specialist?.custoConsulta ?? null) : null,
+            syncStatus: "pending" as const,
+          }
+        : e
+    );
+    await saveEvals(updated);
+  }, [saveEvals]);
+
+  const addSpecialist = useCallback(async (
+    s: Omit<LocalSpecialist, "id" | "criadoEm">
+  ): Promise<LocalSpecialist> => {
+    const newS: LocalSpecialist = {
+      ...s,
+      id: genId(),
+      criadoEm: new Date().toISOString(),
+    };
+    const updated = [...specialistsRef.current, newS];
+    await saveSpecialists(updated);
+    return newS;
+  }, [saveSpecialists]);
+
+  const updateSpecialist = useCallback(async (id: string, patch: Partial<LocalSpecialist>) => {
+    const updated = specialistsRef.current.map((s) =>
+      s.id === id ? { ...s, ...patch } : s
+    );
+    await saveSpecialists(updated);
+  }, [saveSpecialists]);
+
+  const deactivateSpecialist = useCallback(async (id: string) => {
+    const updated = specialistsRef.current.map((s) =>
+      s.id === id ? { ...s, ativo: false } : s
+    );
+    await saveSpecialists(updated);
+  }, [saveSpecialists]);
 
   const getPendingPatients = useCallback(() =>
     patientsRef.current.filter((p) => p.syncStatus === "pending"), []);
@@ -410,6 +503,11 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
           dataAvaliacao: date.toISOString(),
           formId,
           syncStatus,
+          encaminhado: null,
+          specialistId: null,
+          specialistNome: null,
+          especialidade: null,
+          custoEstimado: null,
         };
         return ev;
       })
@@ -425,9 +523,11 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
     await Promise.all([
       AsyncStorage.removeItem(PATIENTS_KEY),
       AsyncStorage.removeItem(EVALS_KEY),
+      AsyncStorage.removeItem(SPECIALISTS_KEY),
     ]);
     setPatients([]);
     setEvaluations([]);
+    setSpecialists([]);
   }, []);
 
   return (
@@ -435,11 +535,13 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
       value={{
         patients,
         evaluations,
+        specialists,
         isLoaded,
         addPatient,
         updatePatient,
         deletePatient,
         addEvaluation,
+        updateEvaluationReferral,
         getPendingPatients,
         getPendingEvaluations,
         markPatientSynced,
@@ -449,6 +551,9 @@ export function DbProvider({ children }: { children: React.ReactNode }) {
         refreshFromServer,
         seedDemoPatients,
         clearAllData,
+        addSpecialist,
+        updateSpecialist,
+        deactivateSpecialist,
       }}
     >
       {children}

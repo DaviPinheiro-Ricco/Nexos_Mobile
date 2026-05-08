@@ -29,7 +29,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, canViewEvaluations, canCreateEvaluations } = useAuth();
-  const { patients, evaluations } = useDb();
+  const { patients, evaluations, specialists } = useDb();
   const { isOnline, isSyncing, pendingCount, syncNow } = useSync();
 
   const totalEvals = evaluations.length;
@@ -344,10 +344,14 @@ export default function HomeScreen() {
 
           {/* Stats */}
           <View style={s.statsRow}>
-            <View style={s.statCard}>
-              <Text style={s.statNum}>{patients.length}</Text>
-              <Text style={s.statLabel}>Pacientes</Text>
-            </View>
+              <View style={s.statCard}>
+                <Text style={s.statNum}>{patients.length}</Text>
+                <Text style={s.statLabel}>Pacientes</Text>
+              </View>
+              <View style={s.statCard}>
+                <Text style={s.statNum}>{specialists.length}</Text>
+                <Text style={s.statLabel}>Especialistas</Text>
+              </View>
             <View style={s.statCard}>
               <Text style={s.statNum}>{totalEvals}</Text>
               <Text style={s.statLabel}>Avaliações</Text>

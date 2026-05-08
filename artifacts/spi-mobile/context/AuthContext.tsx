@@ -30,6 +30,7 @@ interface AuthState {
   canCreateEvaluations: () => boolean;
   canManageGroups: () => boolean;
   canManageUsers: () => boolean;
+  canManageSpecialists: () => boolean;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -155,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const canCreateEvaluations = () => role === "admin" || role === "gestor" || role === "agente_saude";
   const canManageGroups    = () => role === "admin" || role === "gestor";
   const canManageUsers     = () => role === "admin" || role === "gestor";
+  const canManageSpecialists = () => role === "admin";
 
   return (
     <AuthContext.Provider
@@ -173,6 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         canCreateEvaluations,
         canManageGroups,
         canManageUsers,
+        canManageSpecialists,
       }}
     >
       {children}
