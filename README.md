@@ -12,6 +12,21 @@
 	</p>
 </div>
 
+
+
+---
+
+## 📱 Screenshots do App
+
+Veja abaixo algumas telas reais do Nexos Mobile em funcionamento:
+
+<div align="center">
+	<img src="Imgs_app/Inicio.jpeg" alt="Tela Inicial" width="250" style="margin: 10px;" />
+	<img src="Imgs_app/Especialistas.jpeg" alt="Tela Especialistas" width="250" style="margin: 10px;" />
+	<img src="Imgs_app/Pacientes.jpeg" alt="Tela Pacientes" width="250" style="margin: 10px;" />
+	<img src="Imgs_app/Config.jpeg" alt="Tela Configurações" width="250" style="margin: 10px;" />
+</div>
+
 ---
 
 ## 🚀 Visão Geral
