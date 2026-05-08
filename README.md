@@ -7,6 +7,48 @@
 	<p>
 		<img src="https://img.shields.io/badge/Node.js-API--Server-green?style=flat-square&logo=node.js" />
 		<img src="https://img.shields.io/badge/React-Mockup--Sandbox-61dafb?style=flat-square&logo=react" />
+
+## ⚙️ Dependências e Como Rodar o App Mobile
+
+### Pré-requisitos
+
+- **Node.js 20+** ([download](https://nodejs.org))
+- **npm** (já incluso no Node.js)
+- **Expo CLI** e **EAS CLI** (para builds e testes)
+
+Instale as ferramentas globais:
+
+```bash
+npm install -g expo-cli eas-cli
+```
+
+### Instalar dependências do app mobile
+
+Entre na pasta do app mobile:
+
+```bash
+cd artifacts/spi-mobile
+npm install
+```
+
+### Rodar o app em modo desenvolvimento
+
+```bash
+npx expo start
+```
+
+Abra o app Expo Go no seu celular e escaneie o QR code para testar.
+
+### Gerar APK para Android
+
+Execute o script:
+
+```bash
+bash artifacts/spi-mobile/build-apk.sh
+```
+
+O build será feito na nuvem Expo. Baixe o APK em expo.dev após o término.
+
 		<img src="https://img.shields.io/badge/Expo-SPI--Mobile-000020?style=flat-square&logo=expo" />
 		<img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" />
 	</p>
